@@ -1,0 +1,535 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>B&W Art Agent — AI Black & White Art Generator</title>
+  <meta name="description" content="Generate stunning black and white artwork powered by AI. Free to use." />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;700&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet" />
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --black: #0a0a0a;
+      --white: #fafafa;
+      --gray-100: #f0f0f0;
+      --gray-200: #d8d8d8;
+      --gray-400: #999;
+      --gray-600: #555;
+      --radius: 10px;
+      --font-mono: 'Space Mono', monospace;
+      --font-serif: 'Playfair Display', serif;
+    }
+
+    body {
+      font-family: var(--font-mono);
+      background: var(--white);
+      color: var(--black);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+
+    /* ── Header ── */
+    header {
+      border-bottom: 2px solid var(--black);
+      padding: 1.5rem 2rem;
+      display: flex;
+      align-items: baseline;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      gap: 0.5rem;
+    }
+
+    header h1 {
+      font-family: var(--font-serif);
+      font-size: clamp(22px, 4vw, 32px);
+      font-weight: 700;
+      letter-spacing: -1px;
+    }
+
+    header span {
+      font-size: 11px;
+      color: var(--gray-400);
+      text-transform: uppercase;
+      letter-spacing: 2px;
+    }
+
+    /* ── Layout ── */
+    main {
+      flex: 1;
+      display: grid;
+      grid-template-columns: 340px 1fr;
+      gap: 0;
+      max-width: 1100px;
+      margin: 0 auto;
+      width: 100%;
+      padding: 2rem;
+      gap: 2rem;
+    }
+
+    @media (max-width: 720px) {
+      main { grid-template-columns: 1fr; padding: 1rem; }
+    }
+
+    /* ── Controls Panel ── */
+    .panel {
+      display: flex;
+      flex-direction: column;
+      gap: 1.5rem;
+    }
+
+    .section-label {
+      font-size: 10px;
+      color: var(--gray-400);
+      text-transform: uppercase;
+      letter-spacing: 2px;
+      margin-bottom: 8px;
+    }
+
+    .style-pills {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+    }
+
+    .pill {
+      font-family: var(--font-mono);
+      font-size: 11px;
+      padding: 5px 12px;
+      border: 1px solid var(--gray-200);
+      border-radius: 20px;
+      cursor: pointer;
+      background: var(--white);
+      color: var(--gray-600);
+      transition: all 0.15s;
+      user-select: none;
+    }
+
+    .pill:hover { border-color: var(--black); color: var(--black); }
+    .pill.active { background: var(--black); color: var(--white); border-color: var(--black); }
+
+    .slider-row {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    .slider-item {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .slider-item label {
+      font-size: 11px;
+      color: var(--gray-600);
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      width: 80px;
+      flex-shrink: 0;
+    }
+
+    .slider-item input[type=range] {
+      flex: 1;
+      accent-color: var(--black);
+      height: 4px;
+      cursor: pointer;
+    }
+
+    .slider-item .val {
+      font-size: 13px;
+      font-weight: 700;
+      width: 20px;
+      text-align: right;
+    }
+
+    textarea {
+      font-family: var(--font-mono);
+      font-size: 13px;
+      width: 100%;
+      padding: 12px;
+      border: 1px solid var(--gray-200);
+      border-radius: var(--radius);
+      background: var(--gray-100);
+      color: var(--black);
+      resize: vertical;
+      min-height: 100px;
+      line-height: 1.6;
+      transition: border 0.15s;
+      outline: none;
+    }
+
+    textarea:focus { border-color: var(--black); }
+    textarea::placeholder { color: var(--gray-400); }
+
+    .btn-generate {
+      font-family: var(--font-mono);
+      font-size: 13px;
+      font-weight: 700;
+      width: 100%;
+      padding: 14px;
+      background: var(--black);
+      color: var(--white);
+      border: none;
+      border-radius: var(--radius);
+      cursor: pointer;
+      text-transform: uppercase;
+      letter-spacing: 2px;
+      transition: opacity 0.2s;
+    }
+
+    .btn-generate:hover { opacity: 0.8; }
+    .btn-generate:disabled { opacity: 0.35; cursor: not-allowed; }
+
+    /* ── Canvas Area ── */
+    .canvas-wrap {
+      display: flex;
+      flex-direction: column;
+      gap: 1rem;
+    }
+
+    .canvas-box {
+      border: 1px solid var(--gray-200);
+      border-radius: var(--radius);
+      background: var(--gray-100);
+      min-height: 420px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .placeholder {
+      text-align: center;
+      padding: 3rem;
+    }
+
+    .placeholder .icon {
+      font-size: 52px;
+      display: block;
+      margin-bottom: 1rem;
+      opacity: 0.3;
+    }
+
+    .placeholder p {
+      font-size: 11px;
+      color: var(--gray-400);
+      text-transform: uppercase;
+      letter-spacing: 2px;
+      line-height: 1.8;
+    }
+
+    .loader {
+      display: none;
+      position: absolute;
+      inset: 0;
+      background: var(--white);
+      align-items: center;
+      justify-content: center;
+      flex-direction: column;
+      gap: 16px;
+    }
+
+    .loader.active { display: flex; }
+
+    .spinner {
+      width: 36px;
+      height: 36px;
+      border: 2px solid var(--gray-200);
+      border-top-color: var(--black);
+      border-radius: 50%;
+      animation: spin 0.75s linear infinite;
+    }
+
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    .loader-text {
+      font-size: 11px;
+      color: var(--gray-400);
+      text-transform: uppercase;
+      letter-spacing: 2px;
+    }
+
+    #svgContainer {
+      display: none;
+      width: 100%;
+      padding: 1.5rem;
+      animation: fadeIn 0.4s ease;
+    }
+
+    @keyframes fadeIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
+
+    #svgContainer svg {
+      width: 100%;
+      height: auto;
+      max-width: 500px;
+      display: block;
+      margin: 0 auto;
+    }
+
+    .action-row {
+      display: none;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+
+    .btn-action {
+      font-family: var(--font-mono);
+      font-size: 11px;
+      padding: 9px 16px;
+      border: 1px solid var(--gray-200);
+      border-radius: var(--radius);
+      background: var(--white);
+      color: var(--black);
+      cursor: pointer;
+      letter-spacing: 0.5px;
+      transition: all 0.15s;
+    }
+
+    .btn-action:hover { background: var(--black); color: var(--white); border-color: var(--black); }
+
+    /* ── Error Toast ── */
+    .toast {
+      display: none;
+      position: fixed;
+      bottom: 2rem;
+      left: 50%;
+      transform: translateX(-50%);
+      background: #c0392b;
+      color: white;
+      font-family: var(--font-mono);
+      font-size: 12px;
+      padding: 12px 20px;
+      border-radius: var(--radius);
+      z-index: 999;
+      animation: fadeIn 0.3s ease;
+    }
+
+    /* ── Footer ── */
+    footer {
+      border-top: 1px solid var(--gray-200);
+      padding: 1rem 2rem;
+      text-align: center;
+      font-size: 11px;
+      color: var(--gray-400);
+      text-transform: uppercase;
+      letter-spacing: 1px;
+    }
+  </style>
+</head>
+<body>
+
+<header>
+  <h1>✦ B&W Art Agent</h1>
+  <span>AI Black &amp; White Art Generator</span>
+</header>
+
+<main>
+  <!-- Controls -->
+  <div class="panel">
+    <div>
+      <p class="section-label">Art Style</p>
+      <div class="style-pills">
+        <button class="pill active" data-style="ink">Ink Drawing</button>
+        <button class="pill" data-style="etching">Etching</button>
+        <button class="pill" data-style="silhouette">Silhouette</button>
+        <button class="pill" data-style="abstract">Abstract</button>
+        <button class="pill" data-style="geometric">Geometric</button>
+        <button class="pill" data-style="stippling">Stippling</button>
+        <button class="pill" data-style="ukiyo">Ukiyo-e</button>
+        <button class="pill" data-style="noir">Film Noir</button>
+      </div>
+    </div>
+
+    <div>
+      <p class="section-label">Parameters</p>
+      <div class="slider-row">
+        <div class="slider-item">
+          <label>Complexity</label>
+          <input type="range" id="complexity" min="1" max="10" value="5" />
+          <span class="val" id="cVal">5</span>
+        </div>
+        <div class="slider-item">
+          <label>Contrast</label>
+          <input type="range" id="contrast" min="1" max="10" value="7" />
+          <span class="val" id="ctVal">7</span>
+        </div>
+      </div>
+    </div>
+
+    <div>
+      <p class="section-label">Description</p>
+      <textarea id="promptInput" placeholder="Describe your artwork...&#10;&#10;Example: a wolf howling at the full moon over a dark forest"></textarea>
+    </div>
+
+    <button class="btn-generate" id="genBtn" onclick="generateArt()">
+      ✦ Generate Art
+    </button>
+  </div>
+
+  <!-- Canvas -->
+  <div class="canvas-wrap">
+    <div class="canvas-box" id="canvasBox">
+      <div class="placeholder" id="placeholder">
+        <span class="icon">◈</span>
+        <p>Choose a style,<br/>describe your vision,<br/>and click Generate</p>
+      </div>
+      <div class="loader" id="loader">
+        <div class="spinner"></div>
+        <span class="loader-text" id="loaderText">Generating art...</span>
+      </div>
+      <div id="svgContainer"></div>
+    </div>
+
+    <div class="action-row" id="actionRow">
+      <button class="btn-action" onclick="generateVariation()">↺ New Variation</button>
+      <button class="btn-action" onclick="downloadSVG()">↓ Download SVG</button>
+      <button class="btn-action" onclick="downloadPNG()">↓ Download PNG</button>
+    </div>
+  </div>
+</main>
+
+<div class="toast" id="toast"></div>
+
+<footer>Powered by Claude AI — Free to use — Open Source</footer>
+
+<script>
+  let selectedStyle = 'ink';
+  let lastSVG = '';
+  let lastPrompt = '';
+  let loaderTimer;
+
+  const msgs = [
+    'Generating art...',
+    'Mixing black & white ink...',
+    'Drawing artistic lines...',
+    'Adjusting shadows...',
+    'Almost there...'
+  ];
+
+  document.querySelectorAll('.pill').forEach(p => {
+    p.addEventListener('click', () => {
+      document.querySelectorAll('.pill').forEach(x => x.classList.remove('active'));
+      p.classList.add('active');
+      selectedStyle = p.dataset.style;
+    });
+  });
+
+  document.getElementById('complexity').addEventListener('input', e => {
+    document.getElementById('cVal').textContent = e.target.value;
+  });
+
+  document.getElementById('contrast').addEventListener('input', e => {
+    document.getElementById('ctVal').textContent = e.target.value;
+  });
+
+  document.getElementById('promptInput').addEventListener('keydown', e => {
+    if (e.ctrlKey && e.key === 'Enter') generateArt();
+  });
+
+  function showToast(msg) {
+    const t = document.getElementById('toast');
+    t.textContent = msg;
+    t.style.display = 'block';
+    setTimeout(() => { t.style.display = 'none'; }, 3500);
+  }
+
+  function showLoader() {
+    document.getElementById('loader').classList.add('active');
+    document.getElementById('placeholder').style.display = 'none';
+    document.getElementById('svgContainer').style.display = 'none';
+    document.getElementById('actionRow').style.display = 'none';
+    let i = 0;
+    document.getElementById('loaderText').textContent = msgs[0];
+    loaderTimer = setInterval(() => {
+      i = (i + 1) % msgs.length;
+      document.getElementById('loaderText').textContent = msgs[i];
+    }, 2200);
+  }
+
+  function hideLoader() {
+    clearInterval(loaderTimer);
+    document.getElementById('loader').classList.remove('active');
+  }
+
+  async function generateArt() {
+    const prompt = document.getElementById('promptInput').value.trim();
+    if (!prompt) { showToast('Please enter a description first!'); return; }
+
+    lastPrompt = prompt;
+    const complexity = document.getElementById('complexity').value;
+    const contrast = document.getElementById('contrast').value;
+    const btn = document.getElementById('genBtn');
+    btn.disabled = true;
+    showLoader();
+
+    try {
+      const res = await fetch('/api/generate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ prompt, style: selectedStyle, complexity, contrast })
+      });
+
+      const data = await res.json();
+
+      if (!res.ok || !data.svg) {
+        throw new Error(data.error || 'Failed to generate');
+      }
+
+      lastSVG = data.svg;
+      hideLoader();
+
+      const container = document.getElementById('svgContainer');
+      container.innerHTML = lastSVG;
+      container.style.display = 'block';
+      document.getElementById('actionRow').style.display = 'flex';
+
+    } catch (err) {
+      hideLoader();
+      document.getElementById('placeholder').style.display = 'block';
+      showToast('Error: ' + err.message);
+    }
+
+    btn.disabled = false;
+  }
+
+  function generateVariation() {
+    if (lastPrompt) generateArt();
+  }
+
+  function downloadSVG() {
+    if (!lastSVG) return;
+    const blob = new Blob([lastSVG], { type: 'image/svg+xml' });
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = 'bw-art.svg';
+    a.click();
+  }
+
+  function downloadPNG() {
+    if (!lastSVG) return;
+    const svgBlob = new Blob([lastSVG], { type: 'image/svg+xml;charset=utf-8' });
+    const url = URL.createObjectURL(svgBlob);
+    const img = new Image();
+    img.onload = () => {
+      const canvas = document.createElement('canvas');
+      canvas.width = 1000;
+      canvas.height = 1000;
+      const ctx = canvas.getContext('2d');
+      ctx.fillStyle = '#ffffff';
+      ctx.fillRect(0, 0, 1000, 1000);
+      ctx.drawImage(img, 0, 0, 1000, 1000);
+      URL.revokeObjectURL(url);
+      const a = document.createElement('a');
+      a.href = canvas.toDataURL('image/png');
+      a.download = 'bw-art.png';
+      a.click();
+    };
+    img.src = url;
+  }
+</script>
+</body>
+</html>
